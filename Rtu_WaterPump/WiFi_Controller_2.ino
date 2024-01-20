@@ -29,9 +29,18 @@ const char* password = "HuynhTop176C142129";
 #define PUMP_TURN_OFF 0x00
 #define PUMP_TURN_ON 0x01
 #define PUMP_INIT 0xFE
-#define DISABLE 0x00
-#define ENABLE 0x01
+// #define DISABLE 0x00
+// #define ENABLE 0x01
 #define DEVELOPMENT_PHASE ENABLE
+/* Definition and Enum variables */
+enum Water_Pump_Status  {
+  OFF = 0x00,
+  ON
+};
+typedef enum {
+  DISABLE = 0x00,
+  ENABLE
+}Pum_Sys_Cycle_Request;
 
 // /* Firebase global variables - OLD */
 // FirebaseData firebaseData1;
@@ -77,16 +86,18 @@ String nodeID = "Node2";
 String otherNodeID = "Node1";
 
 /* Global Variable for Pump */
+uint8_t GbuL_Pump_Request_Cycle_Status = DISABLE;
 uint8_t Gbul_WaterPump_Sts;
 String WaterPump_Sts = "OFF";
 String Cmd_WaterPump_Sts = "INITSTS";
 String RawCmd_WaterPump_Sts = "";
 
-enum Water_Pump_Status  {
-  OFF,
-  ON
-};
+#define CMD_PORT_PUMP_STS_ON           0x00
+#define CMD_PORT_PUMP_STS_OFF          0x01
+#define FIREBASE_CMD_PUMP_STS_ON       0x31
+#define FIREBASE_CMD_PUMP_STS_OFF      0x30
 
+/* Const variables */
 const int ledPin =  19; //GPIO19 for LED
 const int swPin =  18; //GPIO18 for Switch
 boolean swState = true;
@@ -155,33 +166,32 @@ void streamTimeoutCallback(bool timeout)
   /* Check firebase connection of firebase_Calendar */
   if (!firebase_Automation_Pump_System.httpConnected())
     Serial.printf("firebase_Automation_Pump_System error code: %d, reason: %s\n\n", firebase_Automation_Pump_System.httpCode(), firebase_Automation_Pump_System.errorReason().c_str());  
-
-  // /* Check firebase connection of firebase_Pump_Status */
-  // if (!firebase_Pump_Status.httpConnected())
-  //   Serial.printf("firebase_Pump_Status error code: %d, reason: %s\n\n", firebase_Pump_Status.httpCode(), firebase_Pump_Status.errorReason().c_str());    
-
-  // /* Check firebase connection of firebase_Cmd_Pump_Status */
-  // if (!firebase_Cmd_Pump_Status.httpConnected())
-  //   Serial.printf("firebase_Cmd_Pump_Status error code: %d, reason: %s\n\n", firebase_Cmd_Pump_Status.httpCode(), firebase_Cmd_Pump_Status.errorReason().c_str());    
+ 
   #endif   
     
 }
-//===================================
-void setup() {
+/**************************** Initial Function ****************************/
 
-  /* Initialize Serial Monitor */
+/* Wifi_Ctrl_Serial_Initialization */
+void Wifi_Ctrl_Serial_Initialization (void)
+{
   Serial.begin(115200);
-  Serial.print("Connecting to ");
+  Serial.print("Connecting to ");  
+}
+
+/* Wifi_Ctrl_IOHw_Initialization */
+void Wifi_Ctrl_IOHw_Initialization (void)
+{
+  /* Relay control port */
+  pinMode(13, OUTPUT);  
+  digitalWrite(13, HIGH); //turn OFF  
+}
+
+/* Wifi_Ctrl_Wifi_Initialization */
+void Wifi_Ctrl_Wifi_Initialization (void)
+{
   Serial.println(ssid);
   WiFi.begin(ssid, password);
-
-/* Init global pump variable */
-Gbul_WaterPump_Sts = PUMP_INIT;
-
-/* Initial Port */
- pinMode(13, OUTPUT);  
- digitalWrite(13, HIGH); //turn OFF
- 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -190,74 +200,74 @@ Gbul_WaterPump_Sts = PUMP_INIT;
   Serial.println("");
   Serial.println("WiFi connected.");
   Serial.println("IP address: ");
-  Serial.println(WiFi.localIP()); //streamCallback
+  Serial.println(WiFi.localIP()); //streamCallback  
+}
 
+/* Wifi_Ctrl_WaterPump_Initialization */
+void Wifi_Ctrl_WaterPump_Initialization (void)
+{
+  /* Init global pump variable */
+  Gbul_WaterPump_Sts = PUMP_INIT;  
+}
+
+/* Wifi_Ctrl_Firebase_Sys_Initialization */
+void Wifi_Ctrl_Firebase_Sys_Initialization (void)
+{
   /* Init firebase_Calendar */
-  Firebase.begin(FIREBASE_HOST,FIREBASE_AUTH);
-  Firebase.reconnectWiFi(true);
+    Firebase.begin(FIREBASE_HOST,FIREBASE_AUTH);
+    Firebase.reconnectWiFi(true);
 
-  if ((!Firebase.beginStream(firebase_Automation_Pump_System, Path_Pump_System + "/" + Path_Calendar + "/" + Path_Days + "/" + note_Day))
-    & (!Firebase.beginStream(firebase_Automation_Pump_System, Path_Pump_System + "/" + Path_Calendar + "/" + Path_Times + "/" + note_Hour))
-    & (!Firebase.beginStream(firebase_Automation_Pump_System, Path_Pump_System + "/" + Path_PumpStatus + "/" + Note_PumpStatus))
-    & (!Firebase.beginStream(firebase_Automation_Pump_System, Path_Pump_System + "/" + Path_Cmd_PumpSys + "/" + Note_Cmd_PumpSys_Sts)))
-  {
-    #if DEVELOPMENT_PHASE == ENABLE
-    Serial.println("Could not begin stream");
-    Serial.println("REASON: " + firebase_Automation_Pump_System.errorReason());
-    Serial.println();
-    #endif
-  }
-  else
-  {
-    #if DEVELOPMENT_PHASE == ENABLE
-    Serial.println("start connect to firebase_Automation_Pump_System");
-    #endif
-  }
-  Firebase.setStreamCallback(firebase_Automation_Pump_System, streamCallback, streamTimeoutCallback);
+    if ((!Firebase.beginStream(firebase_Automation_Pump_System, Path_Pump_System + "/" + Path_Calendar + "/" + Path_Days + "/" + note_Day))
+      & (!Firebase.beginStream(firebase_Automation_Pump_System, Path_Pump_System + "/" + Path_Calendar + "/" + Path_Times + "/" + note_Hour))
+      & (!Firebase.beginStream(firebase_Automation_Pump_System, Path_Pump_System + "/" + Path_PumpStatus + "/" + Note_PumpStatus))
+      & (!Firebase.beginStream(firebase_Automation_Pump_System, Path_Pump_System + "/" + Path_Cmd_PumpSys + "/" + Note_Cmd_PumpSys_Sts)))
+    {
+      #if DEVELOPMENT_PHASE == ENABLE
+      Serial.println("Could not begin stream");
+      Serial.println("REASON: " + firebase_Automation_Pump_System.errorReason());
+      Serial.println();
+      #endif
+    }
+    else
+    {
+      #if DEVELOPMENT_PHASE == ENABLE
+      Serial.println("start connect to firebase_Automation_Pump_System");
+      #endif
+    }
+    Firebase.setStreamCallback(firebase_Automation_Pump_System, streamCallback, streamTimeoutCallback);
+}
 
-//   /* Init firebase_Pump_Status */
-//   if (!Firebase.beginStream(firebase_Pump_Status, PumpSys_Path + "/" + PumpStatus_Path ))
-//   {
-//     #if DEVELOPMENT_PHASE == ENABLE
-//     Serial.println("Could not begin stream");
-//     Serial.println("REASON: " + firebase_Pump_Status.errorReason());
-//     Serial.println();
-//     #endif
-//   }
-//   else
-//   {
-//     #if DEVELOPMENT_PHASE == ENABLE
-//     Serial.println("start connect to firebase_Pump_Status");
-//     #endif
-//     }
-//   Firebase.setStreamCallback(firebase_Pump_Status, streamCallback, streamTimeoutCallback);  
-
-// /* Init firebase_Cmd_Pump_Status */
-//   if (!Firebase.beginStream(firebase_Cmd_Pump_Status, Cmd_PumpSys_Path + "/" + Cmd_PumpSys ))
-//   {
-//     #if DEVELOPMENT_PHASE == ENABLE    
-//     Serial.println("Could not begin stream");
-//     Serial.println("REASON: " + firebase_Cmd_Pump_Status.errorReason());
-//     Serial.println();
-//     #endif
-//   }
-//   else
-//   {
-//     #if DEVELOPMENT_PHASE == ENABLE
-//     Serial.println("start connect to firebase_Cmd_Pump_Status");
-//     #endif
-//   }
-//   Firebase.setStreamCallback(firebase_Cmd_Pump_Status, streamCallback, streamTimeoutCallback);    
-
+/* Wifi_Ctrl_NTPClient_Initialization */
+void Wifi_Ctrl_NTPClient_Initialization (void)
+{
   /* Initialize a NTPClient to get time */
   timeClient.begin();
   timeClient.setTimeOffset(+7*60*60);
+}
 
-/* Init Timer for create TASK */
+/* Wifi_Ctrl_Os_INT_Initialization : init Os with interrupt timer */
+void Wifi_Ctrl_Os_INT_Initialization (void)
+{
+  /* Init Timer for create TASK */
   timer = timerBegin(0, 80, true);
   timerAttachInterrupt(timer, &onTimer, true);
   timerAlarmWrite(timer, 1000, true);  		// Match value= 1000000 for 1 sec. delay.
   timerAlarmEnable(timer);           			// Enable Timer with interrupt (Alarm Enable)
+}
+
+
+//===================================
+void setup() {
+
+  /* Invoke Initialization Function */
+  Wifi_Ctrl_Serial_Initialization();
+  Wifi_Ctrl_IOHw_Initialization();
+  Wifi_Ctrl_WaterPump_Initialization();
+  Wifi_Ctrl_Wifi_Initialization();
+  Wifi_Ctrl_Firebase_Sys_Initialization();
+  Wifi_Ctrl_NTPClient_Initialization();
+  Wifi_Ctrl_Os_INT_Initialization();
+
 }
 void loop() {
   uint8_t led_Cnt = 0x00;
@@ -290,42 +300,45 @@ if (0x01 <= (interruptCounter_5000ms_01 /5000))
  
   //  portENTER_CRITICAL(&timerMux);
    interruptCounter_1ms = 0x00;
-  //  portEXIT_CRITICAL(&timerMux);
- 
-  //  totalinterruptCounter_1s++;         	//counting total interrupt
-
-  //  Serial.print(" Total interrupt number: ");
-  //  Serial.println(totalinterruptCounter_1s);
  }
 
-  // while(!timeClient.update()) {
-  //   timeClient.forceUpdate();
-  // }
 //===================================
 
 }
 
+/* Wifi_Ctrl_Pump_Sys_TurnON */
+void Wifi_Ctrl_Pump_Sys_TurnON (void)
+{
+  digitalWrite(13, CMD_PORT_PUMP_STS_ON);
+  Gbul_WaterPump_Sts = PUMP_TURN_ON;
+}
+
+/* Wifi_Ctrl_Pump_Sys_TurnOFF */
+void Wifi_Ctrl_Pump_Sys_TurnOFF (void)
+{
+  digitalWrite(13, CMD_PORT_PUMP_STS_OFF);
+  Gbul_WaterPump_Sts = PUMP_TURN_OFF;
+}
+
 /* TASK_500ms_01 : Update cmd from App to server and control Replay */
 void TASK_500ms_01(void) {
-
-if (Firebase.getString(firebase_Automation_Pump_System, Path_Pump_System + "//" + Path_Cmd_PumpSys + "//" + Note_Cmd_PumpSys_Sts + "/" ))
-{
-      RawCmd_WaterPump_Sts = firebase_Automation_Pump_System.stringData();
-      #if DEVELOPMENT_PHASE == ENABLE
-      Serial.print("CMD_PUMP_STATUS: ");
-      Serial.println(RawCmd_WaterPump_Sts);
-      #endif
-      if(0x31 == RawCmd_WaterPump_Sts[0])
-      {
-        digitalWrite(13, LOW);//turn ON
-        Gbul_WaterPump_Sts = PUMP_TURN_ON;
-      }
-      else 
-      {
-        digitalWrite(13, HIGH); //turn OFF
-        Gbul_WaterPump_Sts = PUMP_TURN_OFF;
-      }
-    }  
+/* collect Command from Firebase each 500ms */
+  if (Firebase.getString(firebase_Automation_Pump_System, Path_Pump_System + "//" + Path_Cmd_PumpSys + "//" + Note_Cmd_PumpSys_Sts + "/" ))
+  {
+        RawCmd_WaterPump_Sts = firebase_Automation_Pump_System.stringData();
+        #if DEVELOPMENT_PHASE == ENABLE
+        Serial.print("CMD_PUMP_STATUS: ");
+        Serial.println(RawCmd_WaterPump_Sts);
+        #endif
+        if(FIREBASE_CMD_PUMP_STS_ON == RawCmd_WaterPump_Sts[0])
+        {
+          Wifi_Ctrl_Pump_Sys_TurnON();
+        }
+        else if (FIREBASE_CMD_PUMP_STS_OFF == RawCmd_WaterPump_Sts[0])
+        {
+          Wifi_Ctrl_Pump_Sys_TurnOFF();
+        }
+      }  
 }
 
 /* TASK_2000ms_01 : Update Water Pump Status to Server */
