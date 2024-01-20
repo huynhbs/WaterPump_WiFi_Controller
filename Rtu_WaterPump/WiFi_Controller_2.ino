@@ -113,8 +113,8 @@ String timeStamp;
 
 /* Timer Variable */
 volatile uint32_t interruptCounter_1ms = 0x00;  //for counting interrupt
-volatile uint32_t interruptCounter500ms_01 = 0x00;  //for counting interrupt
-volatile uint32_t interruptCounter2000ms_01 = 0x012C;  //for counting interrupt
+volatile uint32_t interruptCounter200ms_01 = 0x00;  //for counting interrupt
+volatile uint32_t interruptCounter1000ms_01 = 0x012C;  //for counting interrupt
 volatile uint32_t interruptCounter_5000ms_01 = 0x00;  //for counting interrupt
 hw_timer_t * timer = NULL;
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
@@ -123,8 +123,8 @@ portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 void IRAM_ATTR onTimer() {      //Defining Inerrupt function with IRAM_ATTR for faster access
  portENTER_CRITICAL_ISR(&timerMux);
  interruptCounter_1ms++;
- interruptCounter500ms_01++;
- interruptCounter2000ms_01++;
+ interruptCounter200ms_01++;
+ interruptCounter1000ms_01++;
  interruptCounter_5000ms_01++;
  portEXIT_CRITICAL_ISR(&timerMux);
 }
@@ -273,18 +273,18 @@ void loop() {
   uint8_t led_Cnt = 0x00;
   uint16_t led_Cnt2 = 0x00;
 
-/* Trigger TASK_500ms_01 */
-if (0x01 <= (interruptCounter500ms_01 /500))
+/* Trigger TASK_200ms_01 */
+if (0x01 <= (interruptCounter200ms_01 /200))
 {
-  TASK_500ms_01();  
-  interruptCounter500ms_01 = 0x00;
+  TASK_200ms_01();  
+  interruptCounter200ms_01 = 0x00;
 }
 
-/* Trigger TASK_2000ms_01 */
-if (0x01 <= (interruptCounter2000ms_01 /3000))
+/* Trigger TASK_1000ms_01 */
+if (0x01 <= (interruptCounter1000ms_01 /1000))
 {
-  TASK_2000ms_01();  
-  interruptCounter2000ms_01 = 0x00;
+  TASK_1000ms_01();  
+  interruptCounter1000ms_01 = 0x00;
 }
 
 /* Trigger TASK_5000ms_01 */
@@ -320,8 +320,8 @@ void Wifi_Ctrl_Pump_Sys_TurnOFF (void)
   Gbul_WaterPump_Sts = PUMP_TURN_OFF;
 }
 
-/* TASK_500ms_01 : Update cmd from App to server and control Replay */
-void TASK_500ms_01(void) {
+/* TASK_200ms_01 : Update cmd from App to server and control Replay */
+void TASK_200ms_01(void) {
 /* collect Command from Firebase each 500ms */
   if (Firebase.getString(firebase_Automation_Pump_System, Path_Pump_System + "//" + Path_Cmd_PumpSys + "//" + Note_Cmd_PumpSys_Sts + "/" ))
   {
@@ -341,12 +341,12 @@ void TASK_500ms_01(void) {
       }  
 }
 
-/* TASK_2000ms_01 : Update Water Pump Status to Server */
-void TASK_2000ms_01(void) {
-  // Serial.println("ON TASK_2000ms_01 ");
+/* TASK_1000ms_01 : Update Water Pump Status to Server */
+void TASK_1000ms_01(void) {
+  // Serial.println("ON TASK_1000ms_01 ");
   if ( PUMP_TURN_ON == Gbul_WaterPump_Sts )
   {
-     Serial.println("ON TASK_2000ms_01 SET ON ");
+     Serial.println("ON TASK_1000ms_01 SET ON ");
     /* Put ON status to firebase: firebase_Pump_Status */
     if (Firebase.setString(firebase_Automation_Pump_System, Path_Pump_System + "/" + Path_PumpStatus + "/" + Note_PumpStatus , " ON "))
     {
